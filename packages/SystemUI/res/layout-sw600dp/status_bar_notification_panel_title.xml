@@ -176,6 +176,7 @@
                     android:paddingRight="16dp"
                     android:src="@drawable/ic_sysbar_quicksettings"
                     android:contentDescription="@string/accessibility_settings_button"
+					android:layout_gravity="right"
                     />
 
                 <ImageView
@@ -186,6 +187,7 @@
                     android:src="@drawable/ic_notification_open"
                     android:visibility="invisible"
                     android:contentDescription="@string/accessibility_notifications_button"
+					android:layout_gravity="right"
                     />
             </FrameLayout>
 
