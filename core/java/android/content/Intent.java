@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2006 The Android Open Source Project
+ * This code has been modified.  Portions copyright (C) 2010, T-Mobile USA, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -543,7 +544,7 @@ import java.util.Set;
  *     <li> {@link #CATEGORY_DESK_DOCK}
  *     <li> {@link #CATEGORY_LE_DESK_DOCK}
  *     <li> {@link #CATEGORY_HE_DESK_DOCK}
- *     <li> {@link #CATEGORY_TF101_KB_DOCK}
+ *     <li> {@link #CATEGORY_KB_DOCK}
  *     <li> {@link #CATEGORY_CAR_MODE}
  *     <li> {@link #CATEGORY_APP_MARKET}
  * </ul>
@@ -564,7 +565,7 @@ import java.util.Set;
  *     <li> {@link #EXTRA_DOCK_STATE_LE_DESK}
  *     <li> {@link #EXTRA_DOCK_STATE_CAR}
  *     <li> {@link #EXTRA_DOCK_STATE_DESK}
- *     <li> {@link #EXTRA_DOCK_STATE_TF101_KB}
+ *     <li> {@link #EXTRA_DOCK_STATE_KB}
  *     <li> {@link #EXTRA_DOCK_STATE_UNDOCKED}
  *     <li> {@link #EXTRA_DONT_KILL_APP}
  *     <li> {@link #EXTRA_EMAIL}
@@ -2142,6 +2143,19 @@ public class Intent implements Parcelable, Cloneable {
     public static final String ACTION_PRE_BOOT_COMPLETED =
             "android.intent.action.PRE_BOOT_COMPLETED";
 
+    /**
+     * Broadcast Action: Indicate that unrecoverable error happened during app launch.
+     * Could indicate that curently applied theme is malicious.
+     * @hide
+     */
+    public static final String ACTION_APP_LAUNCH_FAILURE = "com.tmobile.intent.action.APP_LAUNCH_FAILURE";
+
+    /**
+     * Broadcast Action: Request to reset the unrecoverable errors count to 0.
+     * @hide
+     */
+    public static final String ACTION_APP_LAUNCH_FAILURE_RESET = "com.tmobile.intent.action.APP_LAUNCH_FAILURE_RESET";
+
     // ---------------------------------------------------------------------
     // ---------------------------------------------------------------------
     // Standard intent categories (see addCategory()).
@@ -2274,6 +2288,7 @@ public class Intent implements Parcelable, Cloneable {
      */
     public static final String CATEGORY_FRAMEWORK_INSTRUMENTATION_TEST =
             "android.intent.category.FRAMEWORK_INSTRUMENTATION_TEST";
+
     /**
      * An activity to run when device is inserted into a car dock.
      * Used with {@link #ACTION_MAIN} to launch an activity.  For more
@@ -2310,13 +2325,21 @@ public class Intent implements Parcelable, Cloneable {
      * information, see {@link android.app.UiModeManager}.
      */
     @SdkConstant(SdkConstantType.INTENT_CATEGORY)
-    public static final String CATEGORY_TF101_KB_DOCK = "android.intent.category.TF101_KB_DOCK";
+    public static final String CATEGORY_KB_DOCK = "android.intent.category.KB_DOCK";
 
     /**
      * Used to indicate that the activity can be used in a car environment.
      */
     @SdkConstant(SdkConstantType.INTENT_CATEGORY)
     public static final String CATEGORY_CAR_MODE = "android.intent.category.CAR_MODE";
+
+    /**
+     * Used to indicate that a theme package has been installed or un-installed.
+     *
+     * @hide
+     */
+    public static final String CATEGORY_THEME_PACKAGE_INSTALLED_STATE_CHANGE =
+            "com.tmobile.intent.category.THEME_PACKAGE_INSTALL_STATE_CHANGE";
 
     // ---------------------------------------------------------------------
     // ---------------------------------------------------------------------
@@ -2576,7 +2599,7 @@ public class Intent implements Parcelable, Cloneable {
      * {@link android.content.Intent#EXTRA_DOCK_STATE_CAR}, or
      * {@link android.content.Intent#EXTRA_DOCK_STATE_LE_DESK}, or
      * {@link android.content.Intent#EXTRA_DOCK_STATE_HE_DESK}, or
-     * {@link android.content.Intent#EXTRA_DOCK_STATE_TF101_KB}.
+     * {@link android.content.Intent#EXTRA_DOCK_STATE_KB}.
      */
     public static final String EXTRA_DOCK_STATE = "android.intent.extra.DOCK_STATE";
 
@@ -2614,7 +2637,7 @@ public class Intent implements Parcelable, Cloneable {
      * Used as an int value for {@link android.content.Intent#EXTRA_DOCK_STATE}
      * to represent that the device is in a keyboard dock.
      */
-    public static final int EXTRA_DOCK_STATE_TF101_KB = 10;
+    public static final int EXTRA_DOCK_STATE_KB = 10;
 
     /**
      * Boolean that can be supplied as meta-data with a dock activity, to

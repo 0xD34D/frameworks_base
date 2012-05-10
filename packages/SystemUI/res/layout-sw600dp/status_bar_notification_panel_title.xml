@@ -152,10 +152,16 @@
                 android:text="@string/status_bar_settings_settings_button"
                 />-->
 
-			<include layout="@layout/battery_cluster_view"
-				android:id="@+id/battery_cluster"
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content" />
+            <include layout="@layout/battery_cluster_view"
+                android:id="@+id/battery_cluster"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+            <include layout="@layout/dock_cluster_view"
+                android:id="@+id/dock_cluster"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone" />
 
             <!-- this will stretch to eat up available space -->
             <View

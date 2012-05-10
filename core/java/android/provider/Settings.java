@@ -1894,6 +1894,13 @@ public final class Settings {
         public static final String NOTIFICATION_LIGHT_PULSE = "notification_light_pulse";
 
         /**
+         * Whether the battery LED should repeatedly flash when the battery is low
+         * on charge. The value is boolean (1 or 0).
+         * @hide
+         */
+        public static final String BATTERY_LIGHT_PULSE = "battery_light_pulse";
+
+        /**
          * Show pointer location on screen?
          * 0 = no
          * 1 = yes
@@ -2819,12 +2826,16 @@ public final class Settings {
 		 */
         public static final String LOCKSCREEN_HIDE_NAV = "lockscreen_hide_nav";
 
-        /** 
-         * Whether to use horizontal recents tasks (WebAOKP)
-         * 
+        /**
+         * the type of recent switcher
+         *
+         * 0 = Stock
+         * 1 = WebAOKP
+         * 2 = Sense 4
+         *
          * @hide
          */
-        public static final String HORIZONTAL_RECENTS_TASK_PANEL = "horizontal_recents_task_panel";
+        public static final String RECENT_APP_SWITCHER = "recent_app_switcher";
 
         /**
          * thickness of the batteyr bar (in dp)
