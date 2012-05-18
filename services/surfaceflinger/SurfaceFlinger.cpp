@@ -106,13 +106,14 @@ SurfaceFlinger::SurfaceFlinger()
         mLastTransactionTime(0),
         mBootFinished(false),
 #ifdef QCOM_HDMI_OUT
-        mHDMIOutput(EXT_DISPLAY_OFF),
+        mExtDispOutput(EXT_TYPE_NONE),
 #endif
 #ifdef QCOM_HARDWARE
         mCanSkipComposition(false),
 #endif
         mConsoleSignals(0),
-        mSecureFrameBuffer(0)
+        mSecureFrameBuffer(0),
+        mUseDithering(false)
 {
     init();
 }
@@ -132,6 +133,10 @@ void SurfaceFlinger::init()
 
     property_get("debug.sf.ddms", value, "0");
     mDebugDDMS = atoi(value);
+
+    property_get("persist.sys.use_dithering", value, "0");
+    mUseDithering = atoi(value) == 1;
+
     if (mDebugDDMS) {
         DdmConnection::start(getServiceName());
     }
@@ -139,6 +144,7 @@ void SurfaceFlinger::init()
     LOGI_IF(mDebugRegion,       "showupdates enabled");
     LOGI_IF(mDebugBackground,   "showbackground enabled");
     LOGI_IF(mDebugDDMS,         "DDMS debugging enabled");
+    LOGI_IF(mUseDithering,      "use dithering");
 }
 
 SurfaceFlinger::~SurfaceFlinger()
@@ -422,10 +428,11 @@ bool SurfaceFlinger::threadLoop()
     //Necessary for race-free overlay channel management.
     //Must always be held only after handleConsoleEvents() since
     //that could enable / disable HDMI based on suspend resume
-    Mutex::Autolock _l(mHDMILock);
+    Mutex::Autolock _l(mExtDispLock);
 #else
     // if we're in a global transaction, don't do anything.
 #endif
+
     const uint32_t mask = eTransactionNeeded | eTraversalNeeded;
     uint32_t transactionFlags = peekTransactionFlags(mask);
     if (UNLIKELY(transactionFlags)) {
@@ -518,7 +525,7 @@ void SurfaceFlinger::handleConsoleEvents()
     if (what & eConsoleAcquired) {
         hw.acquireScreen();
 #ifdef QCOM_HDMI_OUT
-        updateHwcHDMI(mHDMIOutput);
+        updateHwcExternalDisplay(mExtDispOutput);
 #endif
         // this is a temporary work-around, eventually this should be called
         // by the power-manager
@@ -529,7 +536,7 @@ void SurfaceFlinger::handleConsoleEvents()
         if (hw.isScreenAcquired()) {
             hw.releaseScreen();
 #ifdef QCOM_HDMI_OUT
-            updateHwcHDMI(false);
+            updateHwcExternalDisplay(false);
 #endif
         }
     }
@@ -1389,20 +1396,31 @@ int SurfaceFlinger::setOrientation(DisplayID dpy,
 }
 
 #ifdef QCOM_HDMI_OUT
-void SurfaceFlinger::updateHwcHDMI(bool enable)
+void SurfaceFlinger::updateHwcExternalDisplay(int externaltype)
 {
     invalidateHwcGeometry();
     const DisplayHardware& hw(graphicPlane(0).displayHardware());
+    mDirtyRegion.set(hw.bounds());
     HWComposer& hwc(hw.getHwComposer());
-    hwc.enableHDMIOutput(enable);
+    hwc.enableHDMIOutput(externaltype);
 }
 
-void SurfaceFlinger::enableHDMIOutput(int enable)
+/*
+ * Handles the externalDisplay event
+ * @param: disp_type - external display type(HDMI/WFD)
+ * @param: value     - value(on/off)
+ * */
+void SurfaceFlinger::enableExternalDisplay(int disp_type, int value)
 {
-    Mutex::Autolock _l(mHDMILock);
-    mHDMIOutput = enable;
-    updateHwcHDMI(enable);
-    signalEvent();
+    Mutex::Autolock _l(mExtDispLock);
+    external_display_type newType = handleEventHDMI(
+                                      (external_display_type) disp_type, value,
+                                      (external_display_type) mExtDispOutput);
+    if(newType != mExtDispOutput) {
+        mExtDispOutput = (int) newType;
+        updateHwcExternalDisplay(mExtDispOutput);
+        signalEvent();
+    }
 }
 
 void SurfaceFlinger::setActionSafeWidthRatio(float asWidthRatio){

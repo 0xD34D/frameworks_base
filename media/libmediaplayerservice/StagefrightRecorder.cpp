@@ -1457,7 +1457,10 @@ status_t StagefrightRecorder::setupVideoEncoder(
     CHECK(meta->findInt32(kKeySliceHeight, &sliceHeight));
     CHECK(meta->findInt32(kKeyColorFormat, &colorFormat));
 #ifdef QCOM_HARDWARE
-    CHECK(meta->findInt32(kKeyHFR, &hfr));
+    hfr = 0;
+    if (!meta->findInt32(kKeyHFR, &hfr)) {
+        LOGW("hfr not found, default to 0");
+    }
 
     if(hfr) {
       mMaxFileDurationUs = mMaxFileDurationUs * (hfr/mFrameRate);
@@ -1559,6 +1562,14 @@ status_t StagefrightRecorder::setupVideoEncoder(
         LOGW("Camera source supports metadata mode, create OMXCodec for metadata");
         encoder_flags |= OMXCodec::kHardwareCodecsOnly;
         encoder_flags |= OMXCodec::kStoreMetaDataInVideoBuffers;
+#ifdef QCOM_HARDWARE
+        if (property_get("ro.board.platform", value, "0")
+            && (!strncmp(value, "msm7627a", sizeof("msm7627a") - 1) ||
+                !strncmp(value, "msm7x27a", sizeof("msm7x27a") - 1))) {
+            LOGW("msm7627 family of chipsets supports, only one buffer at a time");
+            encoder_flags |= OMXCodec::kOnlySubmitOneInputBufferAtOneTime;
+        }
+#endif
     }
 
     // Do not wait for all the input buffers to become available.

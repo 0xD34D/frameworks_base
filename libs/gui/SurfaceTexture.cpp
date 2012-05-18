@@ -781,6 +781,13 @@ status_t SurfaceTexture::disconnect(int api) {
                 mNextCrop.makeInvalid();
                 mNextScalingMode = NATIVE_WINDOW_SCALING_MODE_FREEZE;
                 mNextTransform = 0;
+#ifdef QCOM_HARDWARE
+                memcpy(mCurrentTransformMatrix, mtxIdentity,
+                       sizeof(mCurrentTransformMatrix));
+                mNextBufferInfo.width = 0;
+                mNextBufferInfo.height = 0;
+                mNextBufferInfo.format = 0;
+#endif
                 mDequeueCondition.signal();
             } else {
                 ST_LOGE("disconnect: connected to another api (cur=%d, req=%d)",
@@ -837,11 +844,7 @@ status_t SurfaceTexture::setScalingMode(int mode) {
     return OK;
 }
 
-#if defined(QCOM_HARDWARE) && !defined(LEGACY_QCOM)
-status_t SurfaceTexture::updateTexImage(bool isComposition) {
-#else
 status_t SurfaceTexture::updateTexImage() {
-#endif
     ST_LOGV("updateTexImage");
     Mutex::Autolock lock(mMutex);
 
@@ -870,17 +873,6 @@ status_t SurfaceTexture::updateTexImage() {
             image = createImage(dpy, mSlots[buf].mGraphicBuffer);
             mSlots[buf].mEglImage = image;
             mSlots[buf].mEglDisplay = dpy;
-
-#ifdef QCOM_HARDWARE
-                // GPU is not efficient in handling GL_TEXTURE_EXTERNAL_OES
-                // texture target. Depending on the image format, decide,
-                // the texture target to be used
-
-                if (isComposition) {
-                mTexTarget =
-                   decideTextureTarget (mSlots[buf].mGraphicBuffer->format);
-                }
-#endif
 
             if (image == EGL_NO_IMAGE_KHR) {
                 // NOTE: if dpy was invalid, createImage() is guaranteed to

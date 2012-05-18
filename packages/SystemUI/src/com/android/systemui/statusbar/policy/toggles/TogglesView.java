@@ -129,6 +129,8 @@ public class TogglesView extends LinearLayout {
                 newToggle = new SwaggerToggle(mContext);
             else if (splitToggle.equals(TOGGLE_FCHARGE))
                 newToggle = new FChargeToggle(mContext);
+            else if (splitToggle.equals(TOGGLE_TETHER))
+                newToggle = new USBTetherToggle(mContext);
 
             if (newToggle != null)
                 toggles.add(newToggle);
@@ -139,12 +141,6 @@ public class TogglesView extends LinearLayout {
     private void addBrightness() {
         rows.add(new LinearLayout(mContext));
         rows.get(rows.size() - 1).addView(new BrightnessSlider(mContext).getView(),
-                PARAMS_BRIGHTNESS);
-    }
-
-    private void addVolume() {
-        rows.add(new LinearLayout(mContext));
-        rows.get(rows.size() - 1).addView(new VolumeSlider(mContext).getView(),
                 PARAMS_BRIGHTNESS);
     }
 

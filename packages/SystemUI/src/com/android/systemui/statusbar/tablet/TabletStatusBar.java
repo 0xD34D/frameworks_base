@@ -61,6 +61,7 @@ import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Pair;
 import android.util.Slog;
+import android.util.TypedValue;
 import android.view.Display;
 import android.view.Gravity;
 import android.view.IWindowManager;
@@ -155,7 +156,9 @@ public class TabletStatusBar extends StatusBar implements
             "**null**", "**null**", "**null**", "**null**", "**null**"
     };
 
-    // The height of the bar, as definied by the build.  It may be taller if we're plugged
+    public Drawable mBackButtonDrawable;
+    
+    // The height of the bar, as defined by the build.  It may be taller if we're plugged
     // into hdmi.
     int mNaturalBarHeight = -1;
     int mIconSize = -1;
@@ -530,12 +533,20 @@ public class TabletStatusBar extends StatusBar implements
             StatusBar.resetColors(mContext);
             recreateStatusBar();
         }
+        if (mShowStatusBar) {
             mHeightReceiver.updateHeight(); // display size may have changed
             loadDimens();
             mNotificationPanelParams.height = getNotificationPanelHeight();
             WindowManagerImpl.getDefault().updateViewLayout(mNotificationPanel,
                     mNotificationPanelParams);
             mRecentsPanel.updateValuesFromResources();
+        } else { // statusbar hidden - so don't reset height on rotate/config change
+        	onBarHeightChanged(0);
+        	mNotificationPanelParams.height = getNotificationPanelHeight();
+            WindowManagerImpl.getDefault().updateViewLayout(mNotificationPanel,
+                    mNotificationPanelParams);
+            mRecentsPanel.updateValuesFromResources();
+        }
     }
 
     protected void loadDimens() {
@@ -1368,6 +1379,8 @@ public class TabletStatusBar extends StatusBar implements
     }
 
     public void setImeWindowStatus(IBinder token, int vis, int backDisposition) {
+    	final boolean landscape;
+    	landscape = (mContext.getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE);
         mInputMethodSwitchButton.setImeWindowStatus(token,
                 (vis & InputMethodService.IME_ACTIVE) != 0);
         updateNotificationIcons();
@@ -1375,7 +1388,7 @@ public class TabletStatusBar extends StatusBar implements
         int res;
         switch (backDisposition) {
             case InputMethodService.BACK_DISPOSITION_WILL_NOT_DISMISS:
-                res = R.drawable.ic_sysbar_back;
+                res = -1; // force us to do a look up when restoring back icon
                 break;
             case InputMethodService.BACK_DISPOSITION_WILL_DISMISS:
                 res = R.drawable.ic_sysbar_back_ime;
@@ -1385,12 +1398,15 @@ public class TabletStatusBar extends StatusBar implements
                 if ((vis & InputMethodService.IME_VISIBLE) != 0) {
                     res = R.drawable.ic_sysbar_back_ime;
                 } else {
-                    res = R.drawable.ic_sysbar_back;
+                    res = -1;// force us to do a look up when restoring back icon
                 }
                 break;
         }
         if (mBackButton != null) {
-        	mBackButton.setImageResource(res);
+        	if (res == -1)
+        		mBackButton.setImageDrawable(mBackButtonDrawable);
+        	else
+        		mBackButton.setImageResource(res);
         }
         if (FAKE_SPACE_BAR) {
             mFakeSpaceBar.setVisibility(((vis & InputMethodService.IME_VISIBLE) != 0)
@@ -2186,7 +2202,11 @@ public class TabletStatusBar extends StatusBar implements
         makeNavBar();
         mShowStatusBar = (Settings.System.getInt(resolver,
                 Settings.System.NAVIGATION_BAR_BUTTONS_SHOW, 1) == 1);
-        mStatusBarView.setVisibility(mShowStatusBar ? View.VISIBLE : View.GONE);
+       if (mShowStatusBar) {
+    	   mHeightReceiver.updateHeight(); // reset back to normal	   
+       } else {
+    	   onBarHeightChanged(0); // force StatusBar to 0 height.
+       }
     }
 
     private Drawable getNavbarIconImage(boolean landscape, String uri) {
@@ -2235,7 +2255,7 @@ public class TabletStatusBar extends StatusBar implements
 
     private void makeNavBar(){
 
-    	final boolean landscape;
+    	boolean landscape;
     	landscape = (mContext.getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE);
     	if (mNavigationArea != null) {
     		mNavigationArea.removeAllViews();
@@ -2268,20 +2288,22 @@ public class TabletStatusBar extends StatusBar implements
     private ExtensibleKeyButtonView generateKey(boolean landscape, String ClickAction,
             String Longpress,
             String IconUri) {
+    	Drawable buttonIcon = null;
         ExtensibleKeyButtonView v = null;
         Resources r = mContext.getResources();
 
         int btnWidth = 48;
-
+        int pad = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4, r.getDisplayMetrics());
         v = new ExtensibleKeyButtonView(mContext, null, ClickAction, Longpress);
         v.setLayoutParams(getLayoutParams(landscape, btnWidth));
         v.setGlowBackground(R.drawable.ic_sysbar_highlight);
+        v.setPadding(pad, 0, pad, 0);
 
         // the rest is for setting the icon (or custom icon)
         if (IconUri != null && IconUri.length() > 0) {
             File f = new File(Uri.parse(IconUri).getPath());
             if (f.exists())
-                v.setImageDrawable(new BitmapDrawable(r, f.getAbsolutePath()));
+                buttonIcon = new BitmapDrawable(r, f.getAbsolutePath());
         }
 
         if (IconUri != null && !IconUri.equals("")
@@ -2289,13 +2311,13 @@ public class TabletStatusBar extends StatusBar implements
             // it's an icon the user chose from the gallery here
             File icon = new File(Uri.parse(IconUri).getPath());
             if (icon.exists())
-                v.setImageDrawable(new BitmapDrawable(mContext.getResources(), icon.getAbsolutePath()));
+            	buttonIcon = new BitmapDrawable(mContext.getResources(), icon.getAbsolutePath());
 
         } else if (IconUri != null && !IconUri.equals("")) {
             // here they chose another app icon
             try {
                 PackageManager pm = mContext.getPackageManager();
-                v.setImageDrawable(pm.getActivityIcon(Intent.parseUri(IconUri, 0)));
+                buttonIcon = pm.getActivityIcon(Intent.parseUri(IconUri, 0));
             } catch (NameNotFoundException e) {
                 e.printStackTrace();
             } catch (URISyntaxException e) {
@@ -2303,9 +2325,11 @@ public class TabletStatusBar extends StatusBar implements
             }
         } else {
             // ok use default icons here
-            v.setImageDrawable(getNavbarIconImage(landscape, ClickAction));
-        }
-
+        	buttonIcon = getNavbarIconImage(landscape, ClickAction);
+        }    
+        v.setImageDrawable(buttonIcon);
+        if (ACTION_BACK.equals(ClickAction))
+        		mBackButtonDrawable = buttonIcon;
         return v;
     }
 

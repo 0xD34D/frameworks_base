@@ -184,7 +184,7 @@ public:
 
 #ifdef QCOM_HDMI_OUT
     //HDMI Specific
-    virtual void                        enableHDMIOutput(int enable);
+    virtual void                        enableExternalDisplay(int disp_type, int externaltype);
     virtual void                        setActionSafeWidthRatio(float asWidthRatio);
     virtual void                        setActionSafeHeightRatio(float asHeightRatio);
 #endif
@@ -220,6 +220,8 @@ public:
     sp<Layer> getLayer(const sp<ISurface>& sur) const;
 
     GLuint getProtectedTexName() const { return mProtectedTexName; }
+
+    inline int  getUseDithering() const { return mUseDithering; }
 
 
     class MessageDestroyGLTexture : public MessageBase {
@@ -354,7 +356,7 @@ private:
 
 #ifdef QCOM_HDMI_OUT
             //HDMI Specific
-            void updateHwcHDMI(bool enable);
+            void updateHwcExternalDisplay(int externaltype);
 #endif
 #ifdef QCOM_HARDWARE
             bool isGPULayerPresent();
@@ -414,8 +416,8 @@ private:
 
 #ifdef QCOM_HDMI_OUT
                 //HDMI specific
-                bool                        mHDMIOutput;
-                Mutex                       mHDMILock;
+                int                         mExtDispOutput;
+                Mutex                       mExtDispLock;
                 bool                        mOrientationChanged;
 #endif
 #ifdef QCOM_HARDWARE
@@ -439,6 +441,8 @@ private:
 
    // only written in the main thread, only read in other threads
    volatile     int32_t                     mSecureFrameBuffer;
+
+                bool                        mUseDithering;
 };
 
 // ---------------------------------------------------------------------------

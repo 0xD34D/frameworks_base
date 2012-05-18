@@ -44,7 +44,9 @@
 #endif
 
 #define DEBUG_RESIZE    0
-
+#ifdef QCOM_HARDWARE
+#define SHIFT_SRC_TRANSFORM 4
+#endif
 
 namespace android {
 
@@ -182,10 +184,14 @@ status_t Layer::setBuffers( uint32_t w, uint32_t h,
     mSurfaceTexture->setDefaultBufferSize(w, h);
     mSurfaceTexture->setDefaultBufferFormat(format);
 
-    // we use the red index
-    int displayRedSize = displayInfo.getSize(PixelFormatInfo::INDEX_RED);
-    int layerRedsize = info.getSize(PixelFormatInfo::INDEX_RED);
-    mNeedsDithering = layerRedsize > displayRedSize;
+    if (mFlinger->getUseDithering()) {
+        // we use the red index
+        int displayRedSize = displayInfo.getSize(PixelFormatInfo::INDEX_RED);
+        int layerRedsize = info.getSize(PixelFormatInfo::INDEX_RED);
+        mNeedsDithering = layerRedsize > displayRedSize;
+    } else {
+        mNeedsDithering = false;
+    }
 
     return NO_ERROR;
 }
@@ -235,6 +241,12 @@ void Layer::setGeometry(hwc_layer_t* hwcl)
         hwcl->flags = HWC_SKIP_LAYER;
     } else {
         hwcl->transform = finalTransform;
+#ifdef QCOM_HARDWARE
+        //mBufferTransform will have the srcTransform
+        //include src and final transform in the hwcl->transform
+        hwcl->transform = (( bufferOrientation.getOrientation() <<
+                                       SHIFT_SRC_TRANSFORM) | hwcl->transform);
+#endif
     }
 
     if (isCropped()) {
@@ -312,55 +324,36 @@ void Layer::onDraw(const Region& clip) const
 	    clearWithOpenGL(clip, 0, 0, 0, 1);
         return;
 	}
-
-    GLuint currentTextureTarget = mSurfaceTexture->getCurrentTextureTarget();
 #endif
 
     if (!isProtected()) {
-#ifdef QCOM_HARDWARE
-        glBindTexture(currentTextureTarget, mTextureName);
-#else
         glBindTexture(GL_TEXTURE_EXTERNAL_OES, mTextureName);
-#endif
         GLenum filter = GL_NEAREST;
         if (getFiltering() || needsFiltering() || isFixedSize() || isCropped()) {
             // TODO: we could be more subtle with isFixedSize()
             filter = GL_LINEAR;
         }
-#ifdef QCOM_HARDWARE
-        glTexParameterx(currentTextureTarget, GL_TEXTURE_MAG_FILTER, filter);
-        glTexParameterx(currentTextureTarget, GL_TEXTURE_MIN_FILTER, filter);
-#else
         glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, filter);
         glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, filter);
-#endif
         glMatrixMode(GL_TEXTURE);
         glLoadMatrixf(mTextureMatrix);
         glMatrixMode(GL_MODELVIEW);
         glDisable(GL_TEXTURE_2D);
-#ifdef QCOM_HARDWARE
-        glEnable(currentTextureTarget);
-#else
         glEnable(GL_TEXTURE_EXTERNAL_OES);
-#endif
     } else {
-#ifdef QCOM_HARDWARE
-        glBindTexture(currentTextureTarget, mFlinger->getProtectedTexName());
-#else
         glBindTexture(GL_TEXTURE_2D, mFlinger->getProtectedTexName());
-#endif
         glMatrixMode(GL_TEXTURE);
         glLoadIdentity();
         glMatrixMode(GL_MODELVIEW);
-#ifdef QCOM_HARDWARE
-        glEnable(currentTextureTarget);
-#else
         glDisable(GL_TEXTURE_EXTERNAL_OES);
         glEnable(GL_TEXTURE_2D);
-#endif
     }
 
 #ifdef QCOM_HARDWARE
+    if(needsDithering()) {
+        glEnable(GL_DITHER);
+    }
+
     int composeS3DFormat = mQCLayer->needsS3DCompose();
     if (composeS3DFormat)
         drawS3DUIWithOpenGL(clip);
@@ -372,6 +365,11 @@ void Layer::onDraw(const Region& clip) const
 
     glDisable(GL_TEXTURE_EXTERNAL_OES);
     glDisable(GL_TEXTURE_2D);
+#ifdef QCOM_HARDWARE
+    if(needsDithering()) {
+        glDisable(GL_DITHER);
+    }
+#endif
 }
 
 // As documented in libhardware header, formats in the range
@@ -480,17 +478,7 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
             mFlinger->signalEvent();
         }
 
-#if defined(QCOM_HARDWARE) && !defined(LEGACY_QCOM)
-        // While calling updateTexImage() from SurfaceFlinger, let it know
-        // by passing an extra parameter
-        // This will be true always.
-
-        bool isComposition = true;
-
-        if (mSurfaceTexture->updateTexImage(isComposition) < NO_ERROR) {
-#else
         if (mSurfaceTexture->updateTexImage() < NO_ERROR) {
-#endif
             // something happened!
             recomputeVisibleRegions = true;
             return;
@@ -500,6 +488,13 @@ void Layer::lockPageFlip(bool& recomputeVisibleRegions)
 #endif
         // update the active buffer
         mActiveBuffer = mSurfaceTexture->getCurrentBuffer();
+
+#ifdef QCOM_HARDWARE
+        //Buffer validity changed. Reset HWC geometry flags.
+        if(oldActiveBuffer == NULL && mActiveBuffer != NULL) {
+            mFlinger->invalidateHwcGeometry();
+        }
+#endif
 
         const Rect crop(mSurfaceTexture->getCurrentCrop());
         const uint32_t transform(mSurfaceTexture->getCurrentTransform());
