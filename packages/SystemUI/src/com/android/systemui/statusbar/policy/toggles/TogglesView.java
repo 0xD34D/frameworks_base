@@ -145,6 +145,12 @@ public class TogglesView extends LinearLayout {
                 PARAMS_BRIGHTNESS);
     }
 
+    private void addVolume() {
+        rows.add(new LinearLayout(mContext));
+        rows.get(rows.size() - 1).addView(new VolumeSlider(mContext).getView(),
+                PARAMS_BRIGHTNESS);
+    }
+
     private void addViews() {
         removeViews();
         rows = new ArrayList<LinearLayout>();
