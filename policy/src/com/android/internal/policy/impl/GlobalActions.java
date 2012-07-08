@@ -143,8 +143,9 @@ class GlobalActions implements DialogInterface.OnDismissListener, DialogInterfac
         mKeyguardShowing = keyguardShowing;
         mDeviceProvisioned = isDeviceProvisioned;
 
-        if (mDialog != null && mUiContext == null) {
-            mDialog.dismiss();
+        if (mDialog != null) {
+            mDialog.hide();
+            mDialog.cancel();
             mDialog = null;
         }
         //always update the PowerMenu dialog
@@ -305,7 +306,7 @@ class GlobalActions implements DialogInterface.OnDismissListener, DialogInterfac
                 new SinglePressAction(com.android.internal.R.drawable.ic_lock_reboot,
                         R.string.global_action_reboot) {
                     public void onPress() {
-                        ShutdownThread.reboot(mContext, "null", true);
+                        ShutdownThread.reboot(getUiContext(), "null", true);
                     }
 
                     public boolean showDuringKeyguard() {

@@ -71,10 +71,14 @@ class LockScreen extends LinearLayout implements KeyguardScreen {
     private static final int STAY_ON_WHILE_GRABBED_TIMEOUT = 30000;
     
     public static final int LAYOUT_STOCK = 2;
-    public static final int LAYOUT_QUAD = 6;
-    public static final int LAYOUT_OCTO = 8;
     public static final int LAYOUT_AOSP = 1;
     public static final int LAYOUT_HONEY = 0;
+    public static final int LAYOUT_TRI = 3;
+    public static final int LAYOUT_QUAD = 4;
+    public static final int LAYOUT_HEPTA = 5;
+    public static final int LAYOUT_HEXA = 6;
+    public static final int LAYOUT_SEPTA = 7;
+    public static final int LAYOUT_OCTO = 8;
     
     private boolean mLockscreen4Tab = false || (Settings.System.getInt(
 			mContext.getContentResolver(),
@@ -87,6 +91,7 @@ class LockScreen extends LinearLayout implements KeyguardScreen {
     private LockPatternUtils mLockPatternUtils;
     private KeyguardUpdateMonitor mUpdateMonitor;
     private KeyguardScreenCallback mCallback;
+    private SettingsObserver mSettingsObserver;
 
     // current configuration state of keyboard and display
     private int mKeyboardHidden;
@@ -399,7 +404,11 @@ class LockScreen extends LinearLayout implements KeyguardScreen {
         String action = ACTION_NULL;
         Drawable icon;
         String customAppIntentUri;
-        final int index;
+        final Integer index;
+
+        public Target() {
+            this.index = null;
+        }
 
         public Target(int index) {
             this.index = index;
@@ -410,6 +419,8 @@ class LockScreen extends LinearLayout implements KeyguardScreen {
         }
 
         Drawable getDrawable() {
+            if(index == null) return null;
+
             int resId;
             Drawable drawable = null;
             PackageManager pm = getContext().getPackageManager();
@@ -545,6 +556,11 @@ class LockScreen extends LinearLayout implements KeyguardScreen {
 
             int numTargets = mLockscreenTargets;
 
+            int numPadding = 0;
+            if(numTargets == LAYOUT_TRI) numPadding = 1;
+                else if(numTargets == LAYOUT_QUAD) numPadding = 2;
+                else if(numTargets == LAYOUT_HEPTA) numPadding = 3;
+
             for (int i = 0; i < numTargets; i++) {
                 String settingUri = Settings.System.getString(mContext.getContentResolver(),
                         Settings.System.LOCKSCREEN_CUSTOM_APP_ACTIVITIES[i]);
@@ -576,6 +592,10 @@ class LockScreen extends LinearLayout implements KeyguardScreen {
                 }
                 t.setDrawable();
                 targets.add(t);
+            }
+
+            for (int i = 0; i < numPadding; i++) {
+                targets.add(new Target());
             }
 
             if (unlockTarget == -1)
@@ -626,8 +646,8 @@ class LockScreen extends LinearLayout implements KeyguardScreen {
 
         mKeyboardHidden = configuration.hardKeyboardHidden;
 
-        SettingsObserver settingsObserver = new SettingsObserver(new Handler());
-        settingsObserver.observe();
+        mSettingsObserver = new SettingsObserver(new Handler());
+        mSettingsObserver.observe();
 
         targetController = new TargetController();
 
@@ -646,7 +666,9 @@ class LockScreen extends LinearLayout implements KeyguardScreen {
         switch (mLockscreenTargets) {
             default:
             case LAYOUT_STOCK:
+            case LAYOUT_TRI:
             case LAYOUT_QUAD:
+            case LAYOUT_HEPTA:
                 if (landscape)
                     inflater.inflate(R.layout.keyguard_screen_tab_unlock_land, this,
                             true);
@@ -654,6 +676,8 @@ class LockScreen extends LinearLayout implements KeyguardScreen {
                     inflater.inflate(R.layout.keyguard_screen_tab_unlock, this,
                             true);
                 break;
+            case LAYOUT_HEXA:
+            case LAYOUT_SEPTA:
             case LAYOUT_OCTO:
                 if (landscape)
                     inflater.inflate(R.layout.keyguard_screen_tab_octounlock_land, this,
@@ -870,6 +894,8 @@ class LockScreen extends LinearLayout implements KeyguardScreen {
     /** {@inheritDoc} */
     public void cleanUp() {
         mUpdateMonitor.removeCallback(this); // this must be first
+        mContext.getContentResolver().unregisterContentObserver(mSettingsObserver);
+        mSettingsObserver = null;
         mLockPatternUtils = null;
         mUpdateMonitor = null;
         mCallback = null;
@@ -910,7 +936,7 @@ class LockScreen extends LinearLayout implements KeyguardScreen {
     }
 
     private Drawable resize(Drawable image) {
-        int size = 50;
+        int size = 40;
         int px = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, size, getResources().getDisplayMetrics());
 
         Bitmap d = ((BitmapDrawable) image).getBitmap();

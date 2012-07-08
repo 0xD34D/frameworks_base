@@ -18,6 +18,7 @@ package com.android.systemui.statusbar.tablet;
 
 import java.io.File;
 import java.io.FileDescriptor;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -61,7 +62,6 @@ import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Pair;
 import android.util.Slog;
-import android.util.TypedValue;
 import android.view.Display;
 import android.view.Gravity;
 import android.view.IWindowManager;
@@ -129,7 +129,7 @@ public class TabletStatusBar extends StatusBar implements
     final static boolean NOTIFICATION_PEEK_ENABLED = false;
     final static int NOTIFICATION_PEEK_HOLD_THRESH = 200; // ms
     final static int NOTIFICATION_PEEK_FADE_DELAY = 3000; // ms
-    
+
     // stuff for custom NavBar
     final static String ACTION_HOME = "**home**";
     final static String ACTION_BACK = "**back**";
@@ -141,15 +141,15 @@ public class TabletStatusBar extends StatusBar implements
     final static String ACTION_KILL = "**kill**";
     final static String ACTION_NULL = "**null**";
 
-    int mNumberOfButtons = 4;
+    int mNumberOfButtons = 3;
 
     public String[] mClickActions = new String[5];
     public String[] mLongpressActions = new String[5];
     public String[] mPortraitIcons = new String[5];
 
-    public final static int StockButtonsQty = 4;
+    public final static int StockButtonsQty = 3;
     public final static String[] StockClickActions = {
-            "**back**", "**home**", "**recents**", "**menu**", "**null**"
+            "**back**", "**home**", "**recents**", "**null**", "**null**"
     };
 
     public final static String[] StockLongpress = {
@@ -225,7 +225,7 @@ public class TabletStatusBar extends StatusBar implements
     KeyEvent mSpaceBarKeyEvent = null;
 
     View mCompatibilityHelpDialog = null;
-    
+
     // for disabling the status bar
     int mDisabled = 0;
 
@@ -490,39 +490,6 @@ public class TabletStatusBar extends StatusBar implements
         settingsObserver.observe();
     }
 
-    private static void copyNotifications(ArrayList<Pair<IBinder, StatusBarNotification>> dest,
-            NotificationData source) {
-        int N = source.size();
-        for (int i = 0; i < N; i++) {
-            NotificationData.Entry entry = source.get(i);
-            dest.add(Pair.create(entry.key, entry.notification));
-        }
-    }
-
-    private void recreateStatusBar() {
-        mRecreating = true;
-        mStatusBarContainer.removeAllViews();
-
-        // extract notifications.
-        int nNotifs = mNotificationData.size();
-        ArrayList<Pair<IBinder, StatusBarNotification>> notifications =
-                new ArrayList<Pair<IBinder, StatusBarNotification>>(nNotifs);
-        copyNotifications(notifications, mNotificationData);
-        mNotificationData.clear();
-
-        mStatusBarContainer.addView(makeStatusBarView());
-
-        // recreate notifications.
-        for (int i = 0; i < nNotifs; i++) {
-            Pair<IBinder, StatusBarNotification> notifData = notifications.get(i);
-            addNotificationViews(notifData.first, notifData.second);
-        }
-
-        setAreThereNotifications();
-
-        mRecreating = false;
-    }
-
     @Override
     protected void onConfigurationChanged(Configuration newConfig) {
         // detect theme change.
@@ -531,7 +498,13 @@ public class TabletStatusBar extends StatusBar implements
                 (mCurrentTheme == null || !mCurrentTheme.equals(newTheme))) {
             mCurrentTheme = (CustomTheme)newTheme.clone();
             StatusBar.resetColors(mContext);
-            recreateStatusBar();
+
+            // restart systemui
+            try {
+                Runtime.getRuntime().exec("pkill -TERM -f  com.android.systemui");
+            } catch (IOException e) {
+                // we're screwed here fellas
+            }
         }
         if (mShowStatusBar) {
             mHeightReceiver.updateHeight(); // display size may have changed
@@ -1319,9 +1292,6 @@ public class TabletStatusBar extends StatusBar implements
         		}
         	}
         }
-
-		if (mMenuButton != null)
-			mMenuButton.setVisibility(showMenu ? View.VISIBLE : View.GONE);
         // See above re: lights-out policy for legacy apps.
         if (showMenu) setLightsOn(true);
 
@@ -2293,11 +2263,10 @@ public class TabletStatusBar extends StatusBar implements
         Resources r = mContext.getResources();
 
         int btnWidth = 48;
-        int pad = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4, r.getDisplayMetrics());
+
         v = new ExtensibleKeyButtonView(mContext, null, ClickAction, Longpress);
         v.setLayoutParams(getLayoutParams(landscape, btnWidth));
         v.setGlowBackground(R.drawable.ic_sysbar_highlight);
-        v.setPadding(pad, 0, pad, 0);
 
         // the rest is for setting the icon (or custom icon)
         if (IconUri != null && IconUri.length() > 0) {

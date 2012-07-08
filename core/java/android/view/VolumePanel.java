@@ -563,7 +563,7 @@ public class VolumePanel extends Handler implements OnSeekBarChangeListener,
             mDialog.show();
         }
 
-        if(mRingerAndNotificationStreamsLinked && sc.streamType != AudioManager.STREAM_VOICE_CALL) {
+        if(mRingerAndNotificationStreamsLinked && (sc != null && sc.streamType != AudioManager.STREAM_VOICE_CALL)) {
             updateStates();
         }
 
@@ -578,7 +578,11 @@ public class VolumePanel extends Handler implements OnSeekBarChangeListener,
     }
 
     protected void onPlaySound(int streamType, int flags) {
-
+        // If preference is no sound - just exit here
+        if (Settings.System.getInt(mContext.getContentResolver(),
+             Settings.System.VOLUME_ADJUST_SOUNDS_ENABLED, 1) == 0) {
+             return;
+        }
         if (hasMessages(MSG_STOP_SOUNDS)) {
             removeMessages(MSG_STOP_SOUNDS);
             // Force stop right now

@@ -47,6 +47,11 @@ LOCAL_SRC_FILES:= \
     MemoryLeakTrackUtil.cpp \
     fixedfft.cpp.arm
 
+ifeq ($(BOARD_USES_LIBMEDIA_WITH_AUDIOPARAMETER),true)
+    LOCAL_SRC_FILES+= \
+        AudioParameter.cpp
+endif
+
 ifeq ($(BOARD_USES_AUDIO_LEGACY),true)
     LOCAL_SRC_FILES+= \
         AudioParameter.cpp
@@ -56,6 +61,10 @@ endif
 
 ifeq ($(BOARD_USE_KINETO_COMPATIBILITY),true)
     LOCAL_CFLAGS += -DUSE_KINETO_COMPATIBILITY
+endif
+
+ifeq ($(BOARD_USE_SAMSUNG_SEPARATEDSTREAM),true)
+    LOCAL_CFLAGS += -DUSE_SAMSUNG_SEPARATEDSTREAM
 endif
 
 LOCAL_SHARED_LIBRARIES := \

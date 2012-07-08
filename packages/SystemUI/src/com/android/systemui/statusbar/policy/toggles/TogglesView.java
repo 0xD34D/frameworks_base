@@ -63,13 +63,15 @@ public class TogglesView extends LinearLayout {
     private static final String TOGGLE_SWAGGER = "SWAGGER";
     private static final String TOGGLE_FCHARGE = "FCHARGE";
     private static final String TOGGLE_TETHER = "TETHER";
+    private static final String TOGGLE_NFC = "NFC";
     private int mWidgetsPerRow = 2;
 
     private boolean useAltButtonLayout = false;
 
     private StatusBar sb;
 
-    public static final String STOCK_TOGGLES = TOGGLE_WIFI + TOGGLE_DELIMITER + TOGGLE_AUTOROTATE;
+    public static final String STOCK_TOGGLES = TOGGLE_WIFI + TOGGLE_DELIMITER + TOGGLE_BLUETOOTH
+            + TOGGLE_DELIMITER + TOGGLE_GPS + TOGGLE_DELIMITER + TOGGLE_AUTOROTATE;
 
     View mBrightnessSlider;
 
@@ -132,6 +134,8 @@ public class TogglesView extends LinearLayout {
                 newToggle = new FChargeToggle(mContext);
             else if (splitToggle.equals(TOGGLE_TETHER))
                 newToggle = new USBTetherToggle(mContext);
+            else if (splitToggle.equals(TOGGLE_NFC))
+                newToggle = new NFCToggle(mContext);
 
             if (newToggle != null)
                 toggles.add(newToggle);
@@ -162,13 +166,11 @@ public class TogglesView extends LinearLayout {
             this.setPadding(getPaddingLeft(), pixels, getPaddingRight(), getPaddingBottom());
         }
 
-        if (mBrightnessLocation == BRIGHTNESS_LOC_TOP) {
+        if (mBrightnessLocation == BRIGHTNESS_LOC_TOP)
             addBrightness();
-		}
 
-        if (mVolumeLocation == VOLUME_LOC_TOP) {
+        if (mVolumeLocation == VOLUME_LOC_TOP)
             addVolume();
-		}
 
         for (int i = 0; i < toggles.size(); i++) {
             if (i % mWidgetsPerRow == 0) {
@@ -208,13 +210,11 @@ public class TogglesView extends LinearLayout {
             rows.add(ll);
 
         }
-        if (mBrightnessLocation == BRIGHTNESS_LOC_BOTTOM) {
+        if (mBrightnessLocation == BRIGHTNESS_LOC_BOTTOM)
             addBrightness();
-		}
 
-        if (mVolumeLocation == VOLUME_LOC_BOTTOM) {
+        if (mVolumeLocation == VOLUME_LOC_BOTTOM)
             addVolume();
-		}
 
         final int layout_type = Settings.System.getInt(mContext.getContentResolver(),
                 Settings.System.STATUS_BAR_LAYOUT, 0);

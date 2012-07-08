@@ -17,6 +17,7 @@
 package com.android.systemui.statusbar.phone;
 
 import java.io.FileDescriptor;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 
@@ -209,7 +210,7 @@ public class PhoneStatusBar extends StatusBar {
     boolean mExpandedVisible;
 
     // the date view
-    DateView mDateView;
+    static DateView mDateView;
     LinearLayout mTxtLayout;
     RelativeLayout.LayoutParams mTxtParams;
 
@@ -492,7 +493,7 @@ public class PhoneStatusBar extends StatusBar {
 
         mIsStatusBarBrightNess = Settings.System.getInt(mStatusBarView.getContext()
                 .getContentResolver(),
-                Settings.System.STATUS_BAR_BRIGHTNESS_TOGGLE, 0) == 1;
+                Settings.System.STATUS_BAR_BRIGHTNESS_TOGGLE, 1) == 1;
         if (mIsStatusBarBrightNess) {
             mIsAutoBrightNess = checkAutoBrightNess();
             mContext.getContentResolver().registerContentObserver(
@@ -502,6 +503,14 @@ public class PhoneStatusBar extends StatusBar {
         }
 
         return sb;
+    }
+
+    public static void hideDateView() {
+        mDateView.setVisibility(View.GONE);
+    }
+
+    public static void showDateView() {
+        mDateView.setVisibility(View.VISIBLE);
     }
 
     private boolean checkAutoBrightNess() {
@@ -2065,7 +2074,6 @@ public class PhoneStatusBar extends StatusBar {
         if (mNavigationBarView == null) {
             pw.println("null");
         } else {
-            mNavigationBarView.dump(fd, pw, args);
         }
 
         if (DUMPTRUCK) {
@@ -2371,6 +2379,10 @@ public class PhoneStatusBar extends StatusBar {
         mHandler.sendEmptyMessage(msg);
     }
 
+    public void toggleWidgetView() {
+        mNavigationBarView.toggleWidgetView();
+    }
+
     /**
      * The LEDs are turned o)ff when the notification panel is shown, even just
      * a little bit. This was added last-minute and is inconsistent with the way
@@ -2650,7 +2662,7 @@ public class PhoneStatusBar extends StatusBar {
 
         mIsStatusBarBrightNess = Settings.System.getInt(mStatusBarView.getContext()
                 .getContentResolver(),
-                Settings.System.STATUS_BAR_BRIGHTNESS_TOGGLE, 0) == 1;
+                Settings.System.STATUS_BAR_BRIGHTNESS_TOGGLE, 1) == 1;
 
         loadDimens();
         fontSize = Settings.System.getInt(cr, Settings.System.STATUSBAR_FONT_SIZE, 16) ;
@@ -2728,59 +2740,6 @@ public class PhoneStatusBar extends StatusBar {
         mIntruderAlertView.setVisibility(vis ? View.VISIBLE : View.GONE);
     }
 
-    private static void copyNotifications(ArrayList<Pair<IBinder, StatusBarNotification>> dest,
-            NotificationData source) {
-        int N = source.size();
-        for (int i = 0; i < N; i++) {
-            NotificationData.Entry entry = source.get(i);
-            dest.add(Pair.create(entry.key, entry.notification));
-        }
-    }
-
-    private void recreateStatusBar() {
-        mRecreating = true;
-        mStatusBarContainer.removeAllViews();
-
-        // extract icons from the soon-to-be recreated viewgroup.
-        int nIcons = mStatusIcons.getChildCount();
-        ArrayList<StatusBarIcon> icons = new ArrayList<StatusBarIcon>(nIcons);
-        ArrayList<String> iconSlots = new ArrayList<String>(nIcons);
-        for (int i = 0; i < nIcons; i++) {
-            StatusBarIconView iconView = (StatusBarIconView)mStatusIcons.getChildAt(i);
-            icons.add(iconView.getStatusBarIcon());
-            iconSlots.add(iconView.getStatusBarSlot());
-        }
-
-        // extract notifications.
-        int nNotifs = mNotificationData.size();
-        ArrayList<Pair<IBinder, StatusBarNotification>> notifications =
-                new ArrayList<Pair<IBinder, StatusBarNotification>>(nNotifs);
-        copyNotifications(notifications, mNotificationData);
-        mNotificationData.clear();
-
-        View newStatusBarView = makeStatusBarView();
-
-        // recreate StatusBarIconViews.
-        for (int i = 0; i < nIcons; i++) {
-            StatusBarIcon icon = icons.get(i);
-            String slot = iconSlots.get(i);
-            addIcon(slot, i, i, icon);
-        }
-
-        // recreate notifications.
-        for (int i = 0; i < nNotifs; i++) {
-            Pair<IBinder, StatusBarNotification> notifData = notifications.get(i);
-            addNotificationViews(notifData.first, notifData.second);
-        }
-
-        setAreThereNotifications();
-
-        mStatusBarContainer.addView(newStatusBarView);
-
-        updateExpandedViewPos(EXPANDED_LEAVE_ALONE);
-        mRecreating = false;
-    }
-
     /**
      * Reload some of our resources when the configuration changes.
      *
@@ -2798,12 +2757,14 @@ public class PhoneStatusBar extends StatusBar {
                 (mCurrentTheme == null || !mCurrentTheme.equals(newTheme))) {
             mCurrentTheme = (CustomTheme)newTheme.clone();
             StatusBar.resetColors(mContext);
-            if(mNavigationBarView != null)
-                mNavigationBarView.updateSettings();
-            recreateStatusBar();
-            Intent weatherintent = new Intent("com.aokp.romcontrol.INTENT_WEATHER_REQUEST");
-            weatherintent.putExtra(android.content.Intent.EXTRA_TEXT, "updateweather");
-            mContext.sendBroadcast(weatherintent);
+
+            // restart system ui on theme change
+            try {
+                Runtime.getRuntime().exec("pkill -TERM -f  com.android.systemui");
+            } catch (IOException e) {
+                // we're screwed here fellas
+            }
+
         } else {
 
             if (mClearButton instanceof TextView) {
