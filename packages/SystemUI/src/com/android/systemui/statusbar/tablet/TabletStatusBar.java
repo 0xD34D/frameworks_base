@@ -1277,18 +1277,20 @@ public class TabletStatusBar extends StatusBar implements
         // We will not show or hide the menu button if the user specifically created it for the
         // NavBar.  If they did not, we will temporarily create one.
         if (showMenu) { // we need to show the menu button
-        	if (mMenuButton == null && mTempMenuButton == null) {  // User has not put their own menu button on the navbar or a temp one exists
+        	if (mMenuButton == null /*&& mTempMenuButton == null*/) {  // User has not put their own menu button on the navbar or a temp one exists
         		mTempMenu = true;
-        		mTempMenuButton = generateKey(true, ACTION_MENU,ACTION_NULL,"");
-        		mTempMenuButton.setTag("temp_menu_button");
-        		mNavigationArea.addView((View) mTempMenuButton);
+        		//mTempMenuButton = generateKey(true, ACTION_MENU,ACTION_NULL,"");
+        		//mTempMenuButton.setTag("temp_menu_button");
+        		//mNavigationArea.addView((View) mTempMenuButton);
+				mTempMenuButton.setVisibility(View.VISIBLE);
         	}
         } else {
         	if (mMenuButton == null) { // only try to remove menu if user doesn't have custom button
         		mTempMenu = false;
         		if (mTempMenuButton != null) { // just a little sanity check.  It better not be null
-        			mNavigationArea.removeView(mNavigationArea.findViewWithTag("temp_menu_button"));
-        			mTempMenuButton = null;
+        			//mNavigationArea.removeView(mNavigationArea.findViewWithTag("temp_menu_button"));
+        			//mTempMenuButton = null;
+					mTempMenuButton.setVisibility(View.GONE);
         		}
         	}
         }
@@ -2253,6 +2255,10 @@ public class TabletStatusBar extends StatusBar implements
             }
         }
 
+   		mTempMenuButton = generateKey(landscape, ACTION_MENU,ACTION_NULL,"");
+   		mTempMenuButton.setTag("temp_menu_button");
+   		mNavigationArea.addView(mTempMenuButton);
+		mTempMenuButton.setVisibility(View.GONE);
     }
 
     private ExtensibleKeyButtonView generateKey(boolean landscape, String ClickAction,
